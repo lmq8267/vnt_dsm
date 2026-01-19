@@ -496,7 +496,7 @@ input:checked + .slider:before {
   
 <div class="container">  
 <div class="card">  
-<h1>VNTS 服务器管理</h1>  
+<h1>VNTS 服务端/h1>  
 <div class="status">  
     状态: <span id="service-status">检查中...</span>  
 </div>  
