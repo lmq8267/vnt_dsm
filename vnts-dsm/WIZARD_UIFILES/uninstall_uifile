@@ -1,0 +1,16 @@
+[{
+  "step_title": "卸载套件",
+  "items": [{
+    "type": "singleselect",
+    "desc": "保留或删除服务端的配置:/var/packages/VNTS/var/目录里的 vnts_wg 和 key",
+    "subitems": [{
+      "key": "wizard_keep_data",
+      "desc": "<b>仅卸载</b> 保留WG配置，下次安装时已经添加的WireGuard客户端依然有效",
+      "defaultValue": true
+    }, {
+      "key": "wizard_delete_data",
+      "desc": "<b style=\"color: red\">卸载套件并删除其WG配置 (不可恢复，已经添加的WireGuard客户端将会失效，下次安装后需要重新添加并配置WireGuard客户端)</b>",
+      "defaultValue": false
+    }]
+  }]
+}]

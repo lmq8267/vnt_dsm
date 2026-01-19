@@ -1,0 +1,250 @@
+#!/bin/sh
+
+# DSM 5 -> 7 升级路径:
+# - 不支持
+# DSM 6 -> 7 升级路径:
+# - 文件已从 ${SYNOPKG_PKGDEST}/var 迁移到 ${SYNOPKG_PKGVAR}
+
+# 安装程序日志文件不可写入，仅供参考
+INST_LOG="/var/log/packages/${SYNOPKG_PKGNAME}.log"
+
+# 可选的 FWPORTS 文件
+FWPORTS_FILE="/var/packages/${SYNOPKG_PKGNAME}/conf/${SYNOPKG_PKGNAME}.sc"
+
+# 软件包升级时的临时目录
+TMP_DIR="${SYNOPKG_TEMP_UPGRADE_FOLDER}"
+
+install_log ()
+{
+    local _msg_="$@"
+    if [ -z "${_msg_}" ]; then
+        # 从标准输入读取多行文本
+        while IFS=$'\n' read -r line; do
+            install_log "${line}"
+        done
+    else
+        # 标准错误输出会写入 /var/log/packages/{package}.log 文件。
+        # 标准输出会显示在软件包管理器用户界面的对话框中。
+        echo -e "$(date +'%Y/%m/%d %H:%M:%S')\t${_msg_}" 1>&2
+    fi
+}
+
+# 如果可用，则调用 shell 函数。
+call_func ()
+{
+    FUNC=$1
+    if type "${FUNC}" 2>/dev/null | grep -q 'function' 2>/dev/null; then
+        install_log "${FUNC} 开始"
+        LOG=$2
+        ARG=$3
+        if [ -z "${LOG}" ]; then
+            if [ -z "${ARG}" ]; then
+                eval ${FUNC}
+            else
+                eval ${FUNC} ${ARG}
+            fi
+        else
+            if [ -z "${ARG}" ]; then
+                eval ${FUNC} 2>&1 | ${LOG}
+            else
+                eval ${FUNC} ${ARG} 2>&1 | ${LOG}
+            fi
+        fi
+        install_log "${FUNC} 结束"
+    fi
+}
+
+# 源安装程序变量和函数
+INST_FUNCTIONS=$(dirname $0)"/functions"
+if [ -r "${INST_FUNCTIONS}" ]; then
+    . "${INST_FUNCTIONS}"
+fi
+
+
+# 源软件包特定的变量和函数
+SVC_SETUP=$(dirname $0)"/service-setup"
+if [ -r "${SVC_SETUP}" ]; then
+    . "${SVC_SETUP}"
+fi
+
+
+# 加载由 postinst 脚本存储的（向导）变量。
+load_variables_from_file ${INST_VARIABLES}
+
+# 初始化变量可以从 ${INST_VARIABLES}、软件包或向导中获取。
+call_func "initialize_variables"
+
+
+### 函数库
+
+#
+# 同步spk包中var文件夹下的所有文件（已解压到target/var目录）
+# (@appdata) /var/packages/<package>/target/var -> /var/packages/<package>/var
+#
+syno_sync_var_folder () {
+    # 将所有尚不存在的文件复制过来，并将其他文件重命名为 *.new，以避免覆盖现有文件
+    # 现有的配置文件
+    # 最后，删除在 DSM 7 系统下不再使用的 target/var 文件夹
+    if [ -d ${SYNOPKG_PKGDEST}/var -a "$(ls -A ${SYNOPKG_PKGDEST}/var 2>/dev/null)" ]; then
+    
+        echo "安装来自 var 文件夹的文件"
+    
+        # 移动所有文件，但保留已存在的文件。
+        echo "$RSYNC --ignore-existing --remove-source-files ${SYNOPKG_PKGDEST}/var/ ${SYNOPKG_PKGVAR}"
+        $RSYNC --ignore-existing --remove-source-files ${SYNOPKG_PKGDEST}/var/ ${SYNOPKG_PKGVAR}
+
+        # 将所有剩余的（即之前已存在的）文件重命名，并在文件名后添加 .new 后缀。
+        find ${SYNOPKG_PKGDEST}/var -type f -exec sh -c 'x="{}"; mv "$x" "${x}.new"' \;
+
+        # 移动 .new 文件（覆盖现有文件）
+        echo "$RSYNC --remove-source-files ${SYNOPKG_PKGDEST}/var/ ${SYNOPKG_PKGVAR}"
+        $RSYNC --remove-source-files ${SYNOPKG_PKGDEST}/var/ ${SYNOPKG_PKGVAR}
+
+        # 删除从 spk 文件中提取的 var 文件夹。
+        $RM ${SYNOPKG_PKGDEST}/var
+    fi
+}
+
+set_unix_permissions ()
+{
+    echo "注意：在 DSM7 系统上，不再需要调用 set_unix_permissions() 函数"
+}
+
+syno_remove_user ()
+{
+    echo "${SYNOPKG_PKGNAME} 尚未升级到 DSM7 系统，syno_remove_user() 函数已不再受支持"
+}
+
+syno_group_create ()
+{
+    echo "${SYNOPKG_PKGNAME} 尚未升级到 DSM7 系统，syno_group_create() 函数已不再受支持"
+}
+
+syno_group_remove ()
+{
+    echo "${SYNOPKG_PKGNAME} 尚未升级到 DSM7 系统，syno_group_remove() 函数已不再受支持"
+}
+
+syno_user_add_to_group ()
+{
+    echo "${SYNOPKG_PKGNAME} 尚未升级到 DSM7 系统，syno_user_add_to_group() 函数已不再受支持"
+}
+
+set_syno_permissions ()
+{
+    echo "${SYNOPKG_PKGNAME} 尚未更新至 DSM7 版本，set_syno_permissions() 函数已不再受支持"
+}
+
+syno_user_add_to_legacy_group () {
+    echo "${SYNOPKG_PKGNAME} 尚未升级到 DSM7，syno_user_add_to_legacy_group() 函数已不再受支持"
+}
+
+
+### 通用软件包行为
+
+preinst ()
+{
+    log_step "预安装脚本 - preinst"
+    call_func "validate_preinst"
+    call_func "service_preinst" install_log
+
+    exit 0
+}
+
+postinst ()
+{
+    log_step "安装后脚本 - postinst"
+    call_func "save_wizard_variables" install_log
+
+    # 将 target/var 目录下的数据复制到永久存储设备
+    # 并且不要覆盖旧的配置
+    call_func "syno_sync_var_folder" install_log
+
+    call_func "service_postinst" install_log
+
+    if [ -n "${LOG_FILE}" ]; then
+        echo "安装日志: ${INST_LOG}" >> ${LOG_FILE}
+    fi
+
+    exit 0
+}
+
+preuninst ()
+{
+    log_step "预卸载脚本 - preuninst"
+    call_func "validate_preuninst"
+    call_func "service_preuninst" install_log
+
+    exit 0
+}
+
+postuninst ()
+{
+    log_step "卸载后脚本 - postuninst"
+    call_func "service_postuninst" install_log
+
+    if [ "$wizard_delete_data" = "true" ]; then
+        echo "删除文件..." | install_log
+        if [ "$(ls -A ${SYNOPKG_PKGHOME})" != "" ]; then
+            find ${SYNOPKG_PKGHOME} -mindepth 1 -delete -print | install_log
+        fi
+
+        if [ "$(ls -A ${SYNOPKG_PKGVAR})" != "" ]; then
+            find ${SYNOPKG_PKGVAR} -mindepth 1 -delete -print | install_log
+        fi
+
+        _etc_path=$(realpath /var/packages/${SYNOPKG_PKGNAME}/etc)
+        if [ "$(ls -A ${_etc_path})" != "" ]; then
+            find ${_etc_path} -mindepth 1 -delete -print | install_log
+        fi
+    fi
+
+    exit 0
+}
+
+preupgrade ()
+{
+    log_step "预升级脚本 - preupgrade"
+    call_func "validate_preupgrade"
+
+    # dsm6 -> dsm7
+    if [ -d ${SYNOPKG_PKGDEST}/var ]; then
+        if [ ! -d ${SYNOPKG_PKGVAR} -o $(realpath ${SYNOPKG_PKGVAR}) = $(realpath ${SYNOPKG_PKGDEST}/var) ]; then
+            # 如果从 DSM6 升级到 DSM7，请复制到临时目录。
+            # 然后在升级后将数据恢复到永久存储位置。
+            if [ -d ${SYNOPKG_PKGDEST}/var -a "$(ls -A ${SYNOPKG_PKGDEST}/var 2>/dev/null)" ]; then
+                echo "备份目标文件夹/var 在 DSM6 系统下使用" | install_log
+                echo "$RSYNC ${SYNOPKG_PKGDEST}/var/ ${TMP_DIR}" | install_log
+                $RSYNC ${SYNOPKG_PKGDEST}/var/ ${TMP_DIR} 2>&1 | install_log
+                # 删除 DSM6 目标/var 文件夹
+                rm -rf ${SYNOPKG_PKGDEST}/var 2>&1 | install_log
+            fi
+        fi
+    fi
+
+    call_func "service_preupgrade" install_log
+    call_func "service_save" install_log
+
+    exit 0
+}
+
+postupgrade ()
+{
+    log_step "升级后脚本 - postupgrade"
+
+    call_func "service_restore" install_log
+
+    # dsm6 -> dsm7
+    if [ -d ${TMP_DIR} -a "$(ls -A ${TMP_DIR} 2>/dev/null)" ]; then
+        # 升级后，将数据恢复到永久存储位置一次。
+        echo "从 DSM6 恢复 var 文件夹" | install_log
+        echo "$RSYNC ${TMP_DIR}/ ${SYNOPKG_PKGVAR}" | install_log
+        $RSYNC ${TMP_DIR}/ ${SYNOPKG_PKGVAR} 2>&1 | install_log
+    fi
+
+    # dsm7：现在将所有新文件同步到永久存储设备。
+    call_func "syno_sync_var_folder" install_log
+    call_func "service_postupgrade" install_log
+
+    exit 0
+}

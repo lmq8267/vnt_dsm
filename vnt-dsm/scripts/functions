@@ -1,0 +1,151 @@
+### 适用于 SynoCommunity 通用服务安装程序的常用安装程序函数和变量
+# 
+# 这些功能适用于所有版本的 DSM。
+#
+# 该脚本必须与 sh/ash 兼容，并且不能使用 bash 语法。
+# SRM 和 DSM 6.0 以下版本仅内置了 busybox shell，而没有 bash。
+# 
+
+# 工具快捷方式
+MV="/bin/mv -f"
+RM="/bin/rm -rf"
+CP="/bin/cp -rfp"
+MKDIR="/bin/mkdir -p"
+LN="/bin/ln -nsf"
+TEE="/usr/bin/tee -a"
+RSYNC="/bin/rsync -avh"
+TAR="/bin/tar"
+
+INST_ETC="/var/packages/${SYNOPKG_PKGNAME}/etc"
+INST_VARIABLES="${INST_ETC}/installer-variables"
+
+if [ -z "${SYNOPKG_PKGVAR}" ]; then
+    # 定义 SYNOPKG_PKGVAR 以兼容 DSM7（取代之前的 INST_VAR）
+    SYNOPKG_PKGVAR="${SYNOPKG_PKGDEST}/var"
+fi
+
+
+### 函数库
+
+log_step ()
+{
+    install_log "===> Step $1. STATUS=${SYNOPKG_PKG_STATUS} USER=$USER GROUP=$GROUP SHARE_PATH=${SHARE_PATH}"
+}
+
+
+initialize_variables ()
+{
+    # 预计用户将通过特定于软件包的变量进行设置。
+    if [ -n "${USER}" -a -z "${USER_DESC}" ]; then
+        USER_DESC="User running $SYNOPKG_PKGNAME"
+    fi
+
+    # 如果用户界面提供了组名，则使用默认描述
+    if [ -n "${GROUP}" -a -z "${GROUP_DESC}" ]; then
+        GROUP_DESC="SynoCommunity Package Group"
+    fi
+
+    # 如果提供了共享路径且尚未定义共享名称，则从共享路径中提取共享卷和共享名称。
+    if [ -n "${SHARE_PATH}" ]; then
+        # 将仅包含共享名称的 SHARE_PATH 迁移到完整的共享路径。
+        # 对于没有资源工作程序的文件共享安装程序（SRM 1、DSM 5、旧版 DSM 6 软件包），此项是必需的。
+        if [ "$(echo ${SHARE_PATH} | grep ^/)" != "${SHARE_PATH}" ]; then
+            SHARE_NAME=${SHARE_PATH}
+            if synoshare --get "${SHARE_NAME}" &> /dev/null; then
+                SHARE_PATH=$(synoshare --get "${SHARE_NAME}" | awk 'NR==4' | cut -d] -f1 | cut -d[ -f2)
+                install_log "现有共享文件夹 [${SHARE_NAME}] 的路径为 [${SHARE_PATH}]"
+            else
+                install_log "共享路径 [${SHARE_PATH}] 里不存在 SHARE_NAME"
+            fi
+        fi
+        if [ -z "${SHARE_NAME}" ]; then
+            SHARE_NAME=$(basename ${SHARE_PATH})
+        fi
+        install_log "已配置共享文件夹，共享名称为 [${SHARE_NAME}] ，共享路径为 [${SHARE_PATH}]"
+    fi
+}
+
+
+install_python_virtualenv ()
+{
+    # 打印出PATH环境变量中找到的默认Python版本。
+    python3 --version
+
+    # 打印默认的 pip 版本
+    PIP_VERSION=$(python3 -m pip --version | awk '{print $2}')
+    echo "pip 默认版本: ${PIP_VERSION}"
+
+    # 创建一个 Python 虚拟环境
+    python3 -m venv --system-site-packages ${SYNOPKG_PKGDEST}/env
+
+    if [ ${SYNOPKG_DSM_VERSION_MAJOR} -lt 7 ]; then
+        set_unix_permissions ${SYNOPKG_PKGDEST}/env
+    fi
+}
+
+
+install_python_wheels ()
+{
+    # 默认的 wheelhouse 路径
+    cachedir=${SYNOPKG_PKGVAR}/pip-cache
+    wheelhouse=${SYNOPKG_PKGDEST}/share/wheelhouse
+    requirements=${wheelhouse}/requirements.txt
+
+    # wheels 安装
+    echo "从 wheel 安装软件包"
+    if [ -s ${requirements} ]; then
+       echo "从 wheel 安装软件包 [${requirements}]"
+       pip install $([ $# -gt 0 ] && echo $*) \
+                   --disable-pip-version-check \
+                   --force-reinstall \
+                   --cache-dir ${cachedir} \
+                   --find-links ${wheelhouse} \
+                   --requirement ${requirements} \
+       || echo "ERROR: Python软件包安装失败" 1>&2
+    fi
+
+    if [ ${SYNOPKG_DSM_VERSION_MAJOR} -lt 7 ]; then
+        set_unix_permissions ${SYNOPKG_PKGDEST}/env
+    fi
+
+    echo "已安装的模块:"
+    pip freeze
+}
+
+
+# 用于从文本文件中读取和导出变量的函数
+# 空行和以#开头的行将被忽略
+# 当变量值包含特殊字符（例如 <、> 等）时，无法“引用”该文件来加载变量
+# 已定义的变量不会从文件中读取（例如向导程序中定义的变量）。
+load_variables_from_file ()
+{
+   if [ -n "$1" -a -r "$1" ]; then
+      while read -r _line; do
+        if [ "$(echo ${_line} | grep -v ^[/s]*#)" != "" ]; then
+           _key=${_line%%=*}
+           _value=${_line#*=}
+           _existing_value=$(eval echo "\$${_key}")
+           if [ -z "${_existing_value}" ]; then
+              export "${_key}=${_value}"
+           fi
+        fi
+      done < "$1"
+   fi
+}
+
+
+save_wizard_variables ()
+{
+    if [ -e "${INST_VARIABLES}" -a -n "${GROUP}${SHARE_PATH}${SHARE_NAME}" ]; then
+        $RM "${INST_VARIABLES}"
+    fi
+    if [ -n "${GROUP}" ]; then
+        echo "GROUP=${GROUP}" >> ${INST_VARIABLES}
+    fi
+    if [ -n "${SHARE_PATH}" ]; then
+        echo "SHARE_PATH=${SHARE_PATH}" >> ${INST_VARIABLES}
+    fi
+    if [ -n "${SHARE_NAME}" ]; then
+        echo "SHARE_NAME=${SHARE_NAME}" >> ${INST_VARIABLES}
+    fi
+}

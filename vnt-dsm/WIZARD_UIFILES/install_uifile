@@ -1,0 +1,10 @@
+[
+  {
+    "step_title": "套件信息",
+    "items": [
+      {
+        "desc": "<h1><a href=\"https://github.com/vnt-dev/vnt\" target=\"_blank\">VNT</a> 是一个简便高效的异地组网、内网穿透工具</h1><br><br>⚠️ 注意：本套件需要root权限启动：以下方法二选一<br><br> ① 请安装第三方套件： SimplePermissionManager（权限管理器）后激活并 ✅ VNT<br><br> ② 或打开SSH输入修复权限命令，仅对本次安装有效：<br>sudo sed -i 's/package/root/g' /var/packages/VNT/conf/privilege<br><br> 修复权限后请手动停用套件后再启动即可生效<br><br><br>📲 QQ群：<a href=\"http://qm.qq.com/cgi-bin/qm/qr?_wv=1027&k=lqI5MWnb6XfcRTfjSQ0qqgFkl3Xvxs1w&authKey=q8pnHRvDICAhwa9E3xAtzhnLYtR5JcYQllqPvifeYMJJD8Gt2PvO%2B0qVqcxi7aVE&noverify=0&group_code=1034868233\" target=\"_blank\">vnt组网互联交流群</a> - <a href=\"http://qm.qq.com/cgi-bin/qm/qr?_wv=1027&k=z-CwPEfiF1Lh4T0Py3puH6uYvlk1w3Sj&authKey=AC9kpUAWkAZVD3z%2FH5bpHxvzImkI92xRp14unE1KQAJburMqnXoPplUNKj6HponY&noverify=0&group_code=950473757\" target=\"_blank\">vnt组网互联交流群2</a> -  <a href=\"http://qm.qq.com/cgi-bin/qm/qr?_wv=1027&k=l_1lgEZzqqRdH920FeKJ0ql_d7JBTREV&authKey=Nu8fwAYSx8qw6LVjNB5C5meo3iI%2B%2B0Jt3RrD3ddd54r3x%2FcZK%2BPE7xkdQL8DC2i7&noverify=0&group_code=1060550456\" target=\"_blank\">vnt组网互联交流群3</a>"
+      }
+    ]
+  }
+]

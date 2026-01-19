@@ -1,0 +1,82 @@
+name: 打包 VNT 群晖 SPK 包
+
+on:
+  workflow_dispatch:
+
+env:
+  TZ: Asia/Shanghai
+
+permissions:
+  contents: write
+  actions: write
+  
+jobs:
+  build-spk:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: 拉取代码
+        uses: actions/checkout@v5
+        
+      -  name: 删除历史流程记录
+         uses: Mattraks/delete-workflow-runs@main
+         with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          retain_days: 0
+          keep_minimum_runs: 0
+
+      - name: 创建输出目录
+        run: |
+          mkdir -p /opt/out
+
+      - name: 打包 服务端 package 目录为 package.tgz
+        run: |
+          set -e
+          cd vnts-dsm/package
+          tar cf ../package.tar .
+          cd ../
+          gzip -9 package.tar
+          mv package.tar.gz package.tgz
+          
+      - name: 打包 客户端 package 目录为 package.tgz
+        run: |
+          set -e
+          cd vnt-dsm/package
+          tar cf ../package.tar .
+          cd ../
+          gzip -9 package.tar
+          mv package.tar.gz package.tgz
+
+      - name: 构建 服务端 SPK 文件
+        run: |
+          set -e
+          cd vnts-dsm
+          tar cf /opt/out/vnts_noarch_7.0.spk \
+            INFO \
+            WIZARD_UIFILES \
+            conf \
+            scripts \
+            PACKAGE_ICON.PNG \
+            PACKAGE_ICON_256.PNG \
+            package.tgz
+            
+      - name: 构建 客户端 SPK 文件
+        run: |
+          set -e
+          cd vnt-dsm
+          tar cf /opt/out/vnt-cli_noarch_7.0.spk \
+            INFO \
+            WIZARD_UIFILES \
+            conf \
+            scripts \
+            PACKAGE_ICON.PNG \
+            PACKAGE_ICON_256.PNG \
+            package.tgz
+
+      - name: 上传 SPK 构建产物
+        uses: actions/upload-artifact@v4
+        with:
+          name: vnt_noarch_7.0
+          path: /opt/out/*.spk
+
+

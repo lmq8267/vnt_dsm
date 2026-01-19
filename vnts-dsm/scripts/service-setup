@@ -1,0 +1,224 @@
+### 通用变量和函数
+### -------------------------------
+
+if [ -z "${SYNOPKG_PKGNAME}" ] || [ -z "${SYNOPKG_DSM_VERSION_MAJOR}" ]; then
+  echo "错误：环境变量未设置" 1>&2;
+  echo "请改用 synopkg 运行，例如： \"synopkg start [packagename]\"" 1>&2;
+  exit 1
+fi
+
+USER="VNT"
+EFF_USER="VNT"
+
+
+# 启动/停止/状态脚本 将标准输出/标准错误重定向到 LOG_FILE 文件
+LOG_FILE="${SYNOPKG_PKGVAR}/${SYNOPKG_PKGNAME}.log"
+
+# 服务进程必须将其进程ID写入 PID_FILE 文件中
+PID_FILE="${SYNOPKG_PKGVAR}/${SYNOPKG_PKGNAME}.pid"
+
+# 解析vnts配置并构建CMD参数，同时更新空值到配置文件 
+parse_vnts_config_with_update() {
+    local config_file="/var/packages/VNTS/var/config.yaml"
+    local CMD=""
+    local needs_update=false
+      
+    # 默认值  
+    local service_port="29872"
+    local gateway_ip="10.26.0.1"
+    local netmask="255.255.255.0"
+    local web_enabled="false"
+    local web_port="29870"
+    local web_username="admin"
+    local web_password="admin"
+      
+    # 读取配置文件  
+    if [[ -f "$config_file" ]]; then  
+        # 解析服务端口  
+        local port_from_config=$(grep "^port:" "$config_file" | sed 's/port: //' | xargs)
+        if [[ -n "$port_from_config" ]]; then
+            service_port="$port_from_config"
+        else
+            needs_update=true
+        fi  
+          
+        # 解析网关IP  
+        local gateway_from_config=$(grep "^gateway:" "$config_file" | sed 's/gateway: //' | xargs)
+        if [[ -n "$gateway_from_config" ]]; then
+            gateway_ip="$gateway_from_config"
+        else
+            needs_update=true
+        fi
+          
+        # 解析子网掩码  
+        local netmask_from_config=$(grep "^netmask:" "$config_file" | sed 's/netmask: //' | xargs)
+        if [[ -n "$netmask_from_config" ]]; then
+            netmask="$netmask_from_config"
+        else
+            needs_update=true
+        fi  
+          
+        # 解析token白名单  
+        local tokens=$(grep "^token_whitelist:" "$config_file" | sed 's/token_whitelist: \[//;s/\]//;s/,/ /g' | xargs)
+        
+        # 解析指纹校验  
+        local finger_check=$(grep "^finger_check:" "$config_file" | sed 's/finger_check: //' | xargs)
+        if [[ -z "$finger_check" ]]; then
+            finger_check="false"
+            needs_update=true
+        fi
+          
+        # 检查是否存在web配置
+        if grep -q "^web:" "$config_file"; then
+            # 解析WEB配置
+            web_enabled=$(grep -A 1 "web:" "$config_file" | grep "enabled:" | sed 's/enabled: //' | xargs)
+            local web_port_from_config=$(grep -A 3 "web:" "$config_file" | grep "port:" | sed 's/port: //' | xargs)
+            local web_user_from_config=$(grep -A 4 "web:" "$config_file" | grep "username:" | sed 's/username: "//;s/"//' | xargs)
+            local web_pass_from_config=$(grep -A 5 "web:" "$config_file" | grep "password:" | sed 's/password: "//;s/"//' | xargs)
+              
+            # 检查WEB配置是否需要更新默认值
+            if [[ "$web_enabled" == "true" ]]; then
+                [[ -n "$web_port_from_config" && "$web_port_from_config" != "0" ]] && web_port="$web_port_from_config" || needs_update=true
+                [[ -n "$web_user_from_config" ]] && web_username="$web_user_from_config" || needs_update=true
+                [[ -n "$web_pass_from_config" ]] && web_password="$web_pass_from_config" || needs_update=true
+            fi
+        else
+            needs_update=true
+        fi
+        
+        # 解析日志配置    
+        local log_enabled=$(grep "^log_enabled:" "$config_file" | sed 's/log_enabled: //' | xargs)
+        if [[ -z "$log_enabled" ]]; then
+            log_enabled="true"
+            needs_update=true
+        fi
+          
+        # 如果需要更新配置文件，则更新  
+        if [[ "$needs_update" == "true" ]]; then
+            update_config_file "$config_file" "$service_port" "$gateway_ip" "$netmask" "$web_enabled" "$web_port" "$web_username" "$web_password" "$tokens" "$finger_check" "$log_enabled"
+        fi
+          
+        # 构建CMD参数
+        CMD="-p $service_port -g $gateway_ip"
+          
+        # 添加token白名单
+        for token in $tokens; do
+            [[ -n "$token" ]] && CMD="$CMD -w $token"
+        done
+          
+        CMD="$CMD -m $netmask"
+          
+        # 处理WEB配置  
+        if [[ "$web_enabled" == "true" ]]; then
+            CMD="$CMD -P $web_port -U $web_username -W $web_password"
+        else
+            CMD="$CMD -P 0"
+        fi
+          
+        # 添加指纹校验  
+        [[ "$finger_check" == "true" ]] && CMD="$CMD -f"
+          
+        # 添加日志配置
+        if [[ "$log_enabled" == "true" ]]; then
+            CMD="$CMD -l console"
+        else
+            CMD="$CMD -l /dev/null"
+        fi
+          
+    else
+        # 配置文件不存在时创建默认配置  
+        create_default_config "$config_file"
+        CMD="-p $service_port -g $gateway_ip -m $netmask -P 0 -l /dev/null"
+    fi
+    echo "$CMD"
+}
+
+update_config_file() {
+    local config_file="$1"
+    local service_port="$2"
+    local gateway_ip="$3"
+    local netmask="$4"
+    local web_enabled="$5"
+    local web_port="$6"
+    local web_username="$7"
+    local web_password="$8"
+    local tokens="$9"
+    local finger_check="${10}"
+    local log_enabled="${11}"
+      
+    # 备份原配置文件
+    cp "$config_file" "${config_file}.bak"
+      
+    # 重新生成配置文件
+    cat > "$config_file" << EOF
+port: $service_port
+gateway: $gateway_ip
+token_whitelist: [$tokens]
+finger_check: $finger_check
+EOF
+      
+    # 添加WEB配置
+    if [[ "$web_enabled" == "true" ]]; then
+        cat >> "$config_file" << EOF
+web:
+  enabled: true
+  port: $web_port
+  username: "$web_username"
+  password: "$web_password"
+EOF
+    fi
+      
+    # 添加子网掩码配置
+    echo "netmask: $netmask" >> "$config_file"
+      
+    # 添加日志配置
+    if [[ "$log_enabled" == "true" ]]; then
+        echo "log_enabled: true" >> "$config_file"
+    fi
+}
+
+# 创建默认配置文件函数
+create_default_config() {
+    local config_file="$1"
+    
+    cat > "$config_file" << EOF
+port: 29872
+gateway: 10.26.0.1
+token_whitelist: []
+finger_check: false
+netmask: 255.255.255.0
+log_enabled: true
+EOF
+}
+
+
+VNTS_CMD=$(parse_vnts_config_with_update)
+echo "$VNTS_CMD" >/var/packages/VNTS/var/vnts.cmd
+SVC_CWD="${SYNOPKG_PKGDEST}/bin"
+SERVICE_COMMAND="./vnts"
+SVC_BACKGROUND=y
+SVC_WRITE_PID=y
+
+service_postinst () {
+	cputype=$(uname -ms | tr ' ' '_' | tr '[A-Z]' '[a-z]')
+	[ -n "$(echo $cputype | grep -E "linux.*armv.*")" ] && cpucore="arm"
+	[ -n "$(echo $cputype | grep -E "linux.*armv7.*")" ] && [ -n "$(cat /proc/cpuinfo | grep vfp)" ] && cpucore="armv7"
+	[ -n "$(echo $cputype | grep -E "linux.*aarch64.*|linux.*armv8.*")" ] && cpucore="aarch64"
+	[ -n "$(echo $cputype | grep -E "linux.*86_64.*")" ] && cpucore="x86_64"
+
+	if [ -z "$cpucore" ] ; then
+		echo -e "🛑 无法识别当前设备CPU架构，无法安装！\n\n🛠 ${cputype}" | tee -a $SYNOPKG_TEMP_LOGFILE
+		exit 1
+	fi
+
+	mv -f "${SYNOPKG_PKGDEST}/bin/vnts_${cpucore}" "${SYNOPKG_PKGDEST}/bin/vnts"
+	rm -f "${SYNOPKG_PKGDEST}/bin"/vnts_*
+
+	[ -x "${SYNOPKG_PKGDEST}/bin/vnts" ] || chmod +x "${SYNOPKG_PKGDEST}/bin/vnts"
+
+	if [[ "$(${SYNOPKG_PKGDEST}/bin/vnts -h 2>&1 | wc -l)" -lt 3 ]] ; then
+		echo -e "🛑 当前程序与设备CPU架构不匹配，无法运行！\n\n🛠 CPU:${cputype}  CORE:${cpucore}" | tee -a $SYNOPKG_TEMP_LOGFILE
+		exit 1
+	fi
+}
+

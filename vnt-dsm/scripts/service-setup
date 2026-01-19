@@ -1,0 +1,50 @@
+### 通用变量和函数
+### -------------------------------
+
+if [ -z "${SYNOPKG_PKGNAME}" ] || [ -z "${SYNOPKG_DSM_VERSION_MAJOR}" ]; then
+  echo "错误：环境变量未设置" 1>&2;
+  echo "请改用 synopkg 运行，例如： \"synopkg start [packagename]\"" 1>&2;
+  exit 1
+fi
+
+USER="VNT"
+EFF_USER="VNT"
+
+
+# 启动/停止/状态脚本 将标准输出/标准错误重定向到 LOG_FILE 文件
+LOG_FILE="${SYNOPKG_PKGVAR}/${SYNOPKG_PKGNAME}.log"
+
+# 服务进程必须将其进程ID写入 PID_FILE 文件中
+PID_FILE="${SYNOPKG_PKGVAR}/${SYNOPKG_PKGNAME}.pid"
+
+
+CONFIG_FILE="${SYNOPKG_PKGVAR}/config.yaml"
+
+SVC_CWD="${SYNOPKG_PKGDEST}/bin"
+SERVICE_COMMAND="./vnt-cli -f ${CONFIG_FILE}"
+SVC_BACKGROUND=y
+SVC_WRITE_PID=y
+
+service_postinst () {
+	cputype=$(uname -ms | tr ' ' '_' | tr '[A-Z]' '[a-z]')
+	[ -n "$(echo $cputype | grep -E "linux.*armv.*")" ] && cpucore="arm"
+	[ -n "$(echo $cputype | grep -E "linux.*armv7.*")" ] && [ -n "$(cat /proc/cpuinfo | grep vfp)" ] && cpucore="armv7"
+	[ -n "$(echo $cputype | grep -E "linux.*aarch64.*|linux.*armv8.*")" ] && cpucore="aarch64"
+	[ -n "$(echo $cputype | grep -E "linux.*86_64.*")" ] && cpucore="x86_64"
+
+	if [ -z "$cpucore" ] ; then
+		echo -e "🛑 无法识别当前设备CPU架构，无法安装！\n\n🛠 ${cputype}" | tee -a $SYNOPKG_TEMP_LOGFILE
+		exit 1
+	fi
+
+	mv -f "${SYNOPKG_PKGDEST}/bin/vnt-cli_${cpucore}" "${SYNOPKG_PKGDEST}/bin/vnt-cli"
+	rm -f "${SYNOPKG_PKGDEST}/bin"/vnt-cli_*
+
+	[ -x "${SYNOPKG_PKGDEST}/bin/vnt-cli" ] || chmod +x "${SYNOPKG_PKGDEST}/bin/vnt-cli"
+
+	if [[ "$(${SYNOPKG_PKGDEST}/bin/vnt-cli -h 2>&1 | wc -l)" -lt 3 ]] ; then
+		echo -e "🛑 当前程序与设备CPU架构不匹配，无法运行！\n\n🛠 CPU:${cputype}  CORE:${cpucore}" | tee -a $SYNOPKG_TEMP_LOGFILE
+		exit 1
+	fi
+}
+

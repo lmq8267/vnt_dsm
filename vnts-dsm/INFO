@@ -1,0 +1,18 @@
+package="VNTS"
+version="1.2.13"
+displayname="VNTS-服务端"
+description="VNTS 是VNT的服务端，官网地址：http://rustvnt.com"
+
+arch="noarch"
+os_min_ver="7.0-40000"
+
+maintainer="vnt-dev"
+maintainer_url="https://github.com/vnt-dev/vnts"
+
+distributor="8267"
+distributor_url="https://github.com/lmq8267/vnt_dsm"
+
+helpurl="http://rustvnt.com"
+
+dsmuidir="ui"
+dsmappname="SynoCommunity.VNTS.AppInstance"

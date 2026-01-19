@@ -1,0 +1,1 @@
+#disable_relay: true  # 禁止为其他客户端转发数据流量

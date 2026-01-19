@@ -1,0 +1,16 @@
+[{
+  "step_title": "卸载套件",
+  "items": [{
+    "type": "singleselect",
+    "desc": "保留或删除VNT客户端配置文件",
+    "subitems": [{
+      "key": "wizard_keep_data",
+      "desc": "<b>仅卸载</b> 保留配置文件，下次安装时继续使用这个配置文件加入组网",
+      "defaultValue": true
+    }, {
+      "key": "wizard_delete_data",
+      "desc": "<b style=\"color: red\">卸载套件并删除其配置文件 (不可恢复)</b>",
+      "defaultValue": false
+    }]
+  }]
+}]
