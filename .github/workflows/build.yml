@@ -1,8 +1,24 @@
-name: 打包 VNT 群晖 SPK 包
+name: 打包spk安装包
 
 on:
   workflow_dispatch:
-
+    inputs:
+      vnt:
+        description: '打包VNT客户端spk包'
+        required: true
+        default: true
+        type: boolean
+      vnts:
+        description: '打包VNTS服务端spk包'
+        required: true
+        default: true
+        type: boolean
+      release:
+        description: '是否发布到 Release'
+        required: true
+        default: true
+        type: boolean
+  
 env:
   TZ: Asia/Shanghai
 
@@ -11,47 +27,56 @@ permissions:
   actions: write
   
 jobs:
-  build-spk:
-    runs-on: ubuntu-latest
-
-    steps:
-      - name: 拉取代码
-        uses: actions/checkout@v5
+  build:
+    name: 正在打包 ${{ matrix.target }} 
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
         
-      -  name: 删除历史流程记录
-         uses: Mattraks/delete-workflow-runs@main
-         with:
+        - target: VNT客户端-DSM7.0
+          name: vnt-cli-DSM7.0
+          os: ubuntu-latest
+
+        - target: VNT客户端-DSM6.0
+          name: vnt-cli-DSM6.0
+          os: ubuntu-latest
+
+        - target: VNTS服务端-DSM7.0
+          name: vnts-DSM7.0
+          os: ubuntu-latest
+
+        - target: VNTS服务端-DSM6.0
+          name: vnts-DSM6.0
+          os: ubuntu-latest
+          
+    runs-on: ${{ matrix.os }}
+    env:
+         TARGET: ${{ matrix.target }}
+    steps:
+     - name: Checkout code
+       uses: actions/checkout@v5
+
+     -  name: delete-workflow-runs
+        uses: Mattraks/delete-workflow-runs@main
+        with:
           token: ${{ secrets.GITHUB_TOKEN }}
           retain_days: 0
           keep_minimum_runs: 0
-
-      - name: 创建输出目录
-        run: |
-          mkdir -p /opt/out
-
-      - name: 打包 服务端 package 目录为 package.tgz
-        run: |
-          set -e
-          cd vnts-dsm/package
-          tar cf ../package.tar .
-          cd ../
-          gzip -9 package.tar
-          mv package.tar.gz package.tgz
-          
-      - name: 打包 客户端 package 目录为 package.tgz
-        run: |
-          set -e
-          cd vnt-dsm/package
-          tar cf ../package.tar .
-          cd ../
-          gzip -9 package.tar
-          mv package.tar.gz package.tgz
-
-      - name: 构建 服务端 SPK 文件
-        run: |
-          set -e
-          cd vnts-dsm
-          tar cf /opt/out/vnts_noarch_7.0.spk \
+       
+     - name: 打包 DSM7.0 VNT客户端
+       if: ${{ matrix.target == 'VNT客户端-DSM7.0' && github.event.inputs.vnt == 'true' }}
+       run: |
+        echo -e "\033[32m ===> 开始打包 DSM7.0 VNT客户端 vnt-cli.spk 包 <=== \033[0m"
+        
+        set -e
+        cd vnt-dsm/package
+        tar cf ../package.tar .
+        cd ../
+        gzip -9 package.tar
+        mv package.tar.gz package.tgz
+        mkdir -p /opt/DSM_vnt
+        tar cf /opt/DSM_vnt/vnt-cli_noarch_DSM7.0.spk \
             INFO \
             WIZARD_UIFILES \
             conf \
@@ -59,12 +84,27 @@ jobs:
             PACKAGE_ICON.PNG \
             PACKAGE_ICON_256.PNG \
             package.tgz
-            
-      - name: 构建 客户端 SPK 文件
-        run: |
-          set -e
-          cd vnt-dsm
-          tar cf /opt/out/vnt-cli_noarch_7.0.spk \
+      
+        echo -e "\033[32m ✅ 打包 vnt-cli_DSM7.0.spk 包完成！\033[0m"
+
+     - name: 打包 DSM6.0 VNT客户端
+       if: ${{ matrix.target == 'VNT客户端-DSM6.0' && github.event.inputs.vnt == 'true' }}
+       run: |
+        echo -e "\033[32m ===> 开始打包 DSM6.0 VNT客户端 vnt-cli.spk 包 <=== \033[0m"
+        
+        set -e
+        cp -rf 6.0/PACKAGE_ICON.PNG vnt-dsm/PACKAGE_ICON.PNG
+        cp -rf 6.0/vnt/INFO vnt-dsm/INFO
+        cp -rf 6.0/vnt/privilege vnt-dsm/conf/privilege
+        cp -rf 6.0/vnt/start-stop-status vnt-dsm/scripts/start-stop-status
+        rm -rf vnt-dsm/scripts/real-start-stop-status
+        cd vnt-dsm/package
+        tar cf ../package.tar .
+        cd ../
+        gzip -9 package.tar
+        mv package.tar.gz package.tgz
+        mkdir -p /opt/DSM_vnt
+        tar cf /opt/DSM_vnt/vnt-cli_noarch_DSM6.0.spk \
             INFO \
             WIZARD_UIFILES \
             conf \
@@ -72,11 +112,92 @@ jobs:
             PACKAGE_ICON.PNG \
             PACKAGE_ICON_256.PNG \
             package.tgz
+      
+        echo -e "\033[32m ✅ 打包 vnt-cli_DSM6.0.spk 包完成！\033[0m"
 
-      - name: 上传 SPK 构建产物
-        uses: actions/upload-artifact@v4
-        with:
-          name: vnt_noarch_7.0
-          path: /opt/out/*.spk
+     - name: 打包 DSM7.0 VNTS服务端
+       if: ${{ matrix.target == 'VNTS服务端-DSM7.0' && github.event.inputs.vnts == 'true' }}
+       run: |
+        echo -e "\033[32m ===> 开始打包 DSM7.0 VNTS服务端 vnts.spk 包 <=== \033[0m"
 
+        set -e
+        cd vnts-dsm/package
+        tar cf ../package.tar .
+        cd ../
+        gzip -9 package.tar
+        mv package.tar.gz package.tgz
+        mkdir -p /opt/DSM_vnt
+        tar cf /opt/DSM_vnt/vnts_noarch_DSM7.0.spk \
+            INFO \
+            WIZARD_UIFILES \
+            conf \
+            scripts \
+            PACKAGE_ICON.PNG \
+            PACKAGE_ICON_256.PNG \
+            package.tgz
+        
+        echo -e "\033[32m ✅ 打包 vnts_DSM7.0.spk 包完成！\033[0m"
+
+     - name: 打包 DSM6.0 VNTS服务端
+       if: ${{ matrix.target == 'VNTS服务端-DSM6.0' && github.event.inputs.vnts == 'true' }}
+       run: |
+        echo -e "\033[32m ===> 开始打包 DSM6.0 VNTS服务端 vnts.spk 包 <=== \033[0m"
+
+        set -e
+        cp -rf 6.0/PACKAGE_ICON.PNG vnts-dsm/PACKAGE_ICON.PNG
+        cp -rf 6.0/vnts/INFO vnts-dsm/INFO
+        cd vnts-dsm/package
+        tar cf ../package.tar .
+        cd ../
+        gzip -9 package.tar
+        mv package.tar.gz package.tgz
+        mkdir -p /opt/DSM_vnt
+        tar cf /opt/DSM_vnt/vnts_noarch_DSM6.0.spk \
+            INFO \
+            WIZARD_UIFILES \
+            conf \
+            scripts \
+            PACKAGE_ICON.PNG \
+            PACKAGE_ICON_256.PNG \
+            package.tgz
+        
+        echo -e "\033[32m ✅ 打包 vnts_DSM6.0.spk 包完成！\033[0m"
+
+     - uses: actions/upload-artifact@v4
+       with:
+        name: ${{ matrix.name }}
+        path: /opt/DSM_vnt/*.spk
+
+        
+  release:
+    needs: build
+    if: ${{ github.event.inputs.release == 'true' }}
+    runs-on: ubuntu-latest
+    steps:
+     - name: Checkout code
+       uses: actions/checkout@v5
+
+     - name: 下载已上传的 .fpk 文件
+       uses: actions/download-artifact@v4
+       with:
+         path: DSM_files
+
+     - name: 设置构建时间
+       run: |
+        mkdir -p release
+        find DSM_files -type f -name "*.spk" -exec mv {} release/ \;
+        chmod +x release/*
+        sudo timedatectl set-timezone "Asia/Shanghai"
+        echo "build_time=$(date '+%Y年%m月%d日%H:%M:%S' | jq -sRr @uri)" >> $GITHUB_ENV
+        echo "tag=$(date '+%Y-%m-%d')" >> $GITHUB_ENV
+
+     - name: 发布Release
+       uses: softprops/action-gh-release@v2
+       with:
+         token: ${{ secrets.GITHUB_TOKEN }}
+         tag_name: ${{ env.tag }}
+         body: |
+           > ### ![](https://img.shields.io/badge/打包时间-${{ env.build_time }}-8267?logo=github&labelColor=%E9%A1%BB)![](https://img.shields.io/github/downloads/${{ github.repository }}/${{ env.tag }}/total?label=%E4%B8%8B%E8%BD%BD%E6%AC%A1%E6%95%B0&logo=github)
+         
+         files: release/*.spk
 

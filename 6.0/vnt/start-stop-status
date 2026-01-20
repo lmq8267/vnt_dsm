@@ -54,8 +54,8 @@ start_daemon ()
 {
     VNT_TOKEN="$(sed -n 's/^[[:space:]]*token:[[:space:]]*\([^#[:space:]]\+\).*/\1/p' "$CONFIG_FILE" 2>/dev/null | tr -d '\r\n')"
     if [ -z "$VNT_TOKEN" ] ; then
-       echo -e "\n[$(date '+%Y-%m-%d %H:%M:%S')]: ERROR ⚠️ token缺失！配置文件中必须包含 token 才能启动！">> ${LOG_FILE}
-       exit 0
+        echo -e "\n[$(date '+%Y-%m-%d %H:%M:%S')]: ERROR ⚠️ token缺失！配置文件中必须包含 token 才能启动！">> ${LOG_FILE}
+        exit 0
     fi
     i=0
     call_func "service_prestart"
@@ -260,20 +260,12 @@ case $1 in
         if [ "${SYNOPKG_PKGNAME}" != "VNT" ]; then
               exit 1
         fi
-        if [[ `id -u` -eq 0 ]]; then
-            echo -e "🔔 正在启动，本套件会以root权限运行" | tee -a $SYNOPKG_TEMP_LOGFILE
-        else
-            echo -e "⚠️ 本套件需要root权限启动：以下方法二选一\n\n ① 请安装第三方套件： SimplePermissionManager（权限管理器）后激活并 ✅ VNT\n\n ② 或打开SSH输入修复权限命令，仅对本次安装有效：\n sudo sed -i 's/package/root/g' /var/packages/VNT/conf/privilege\n\n 修复权限后请手动停用套件后再启动即可生效\n\n🔔 可以先填写配置文件保存哦~" > "${LOG_FILE}"
-            echo -e "⚠️ 本套件需要root权限启动：以下方法二选一<br><br> ① 请安装第三方套件： SimplePermissionManager（权限管理器）后激活并 ✅ VNT<br><br> ② 或打开SSH输入修复权限命令，仅对本次安装有效：<br>sudo sed -i 's/package/root/g' /var/packages/${SYNOPKG_PKGNAME}/conf/privilege<br><br> 修复权限后请手动停用套件后再启动即可生效<br><br>🔔 可以先打开VNT 填写配置文件保存哦~" | tee -a $SYNOPKG_TEMP_LOGFILE
-            exit 0
-        fi
         if daemon_status; then
             exit 0
         else
             # 清空日志
     	     > "${LOG_FILE}"
             log_msg "开始运行 ${DNAME} 套件 ..." >> ${LOG_FILE}
-            
             configure_tun
             # 启动命令监控  
             start_command_monitor

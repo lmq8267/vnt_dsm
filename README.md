@@ -7,7 +7,8 @@
 </div>
 </div>
 
-支持 `x86_64` `arm64` `arm` `armv7`  `i386`等架构，下载后在套件中心 手动上传安装即可
+- 支持 `x86_64` `arm64` `arm` `armv7`  `i386`等架构，下载后在套件中心 手动上传安装即可，7.0测试可行，6.0暂未设备测试，可反馈
+- 飞牛的在[lmq8267/vnt_fpk](https://github.com/lmq8267/vnt_fpk) ,在线配置文件[生成](https://lmq8267.github.io/VNT-Magisk/)
 
 ## UI预览
 
