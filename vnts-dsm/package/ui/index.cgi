@@ -1,5 +1,152 @@
 #!/bin/bash    
-  
+
+if [[ -z "$HTTP_COOKIE" ]] || ! echo "$HTTP_COOKIE" | grep -q 'stay_login=1'; then
+    echo "Status: 401 Unauthorized"
+    echo "Content-Type: text/html; charset=UTF-8"
+    echo ""
+    cat << 'EOF'
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="refresh" content="6; url=/#/signin">
+    <title>需要登录 - VNTS服务端</title>
+    <style>
+        body {  
+            margin: 0;  
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Microsoft YaHei", sans-serif;  
+            background: linear-gradient(135deg, #667eea, #764ba2);  
+            min-height: 100vh;  
+            display: flex;  
+            align-items: center;  
+            justify-content: center;  
+            padding: 20px;  
+        }  
+          
+        .error-container {  
+            background: rgba(255, 255, 255, 0.95);  
+            border-radius: 16px;  
+            padding: 40px;  
+            max-width: 500px;  
+            width: 100%;  
+            text-align: center;  
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.2);  
+            animation: fadeIn 0.6s ease;  
+        }  
+          
+        @keyframes fadeIn {  
+            from {  
+                opacity: 0;  
+                transform: translateY(20px);  
+            }  
+            to {  
+                opacity: 1;  
+                transform: translateY(0);  
+            }  
+        }  
+          
+        .error-icon {  
+            font-size: 64px;  
+            margin-bottom: 20px;  
+            color: #eb3349;  
+        }  
+          
+        h1 {  
+            color: #2c3e50;  
+            margin: 0 0 16px 0;  
+            font-size: 28px;  
+        }  
+          
+        .message {  
+            color: #34495e;  
+            font-size: 16px;  
+            line-height: 1.6;  
+            margin-bottom: 24px;  
+        }  
+          
+        .countdown {  
+            background: linear-gradient(135deg, #11998e, #38ef7d);  
+            color: white;  
+            padding: 12px 24px;  
+            border-radius: 25px;  
+            display: inline-block;  
+            font-weight: bold;  
+            margin-bottom: 20px;  
+            animation: pulse 2s infinite;  
+        }  
+          
+        @keyframes pulse {  
+            0%, 100% { opacity: 1; }  
+            50% { opacity: 0.8; }  
+        }  
+          
+        .manual-link {  
+            display: inline-block;  
+            color: #3498db;  
+            text-decoration: none;  
+            font-weight: bold;  
+            padding: 10px 20px;  
+            border: 2px solid #3498db;  
+            border-radius: 8px;  
+            transition: all 0.3s ease;  
+        }  
+          
+        .manual-link:hover {  
+            background: #3498db;  
+            color: white;  
+            transform: scale(1.05);  
+        }  
+          
+        .footer {  
+            margin-top: 30px;  
+            font-size: 14px;  
+            color: #7f8c8d;  
+        }
+        .footer a:hover {
+            color: #409eff;
+            text-decoration: underline;
+        }
+    </style>  
+</head>  
+<body>  
+    <div class="error-container">
+        <div class="error-icon">🔒</div>
+        <h1>需要登录</h1>
+        <div class="message">
+            ⚠️ 请先登录DSM后再访问此套件页面
+        </div>  
+        <div class="countdown" id="countdown">  
+            6秒后自动跳转到登录页面...  
+        </div>  
+        <a href="/#/signin" class="manual-link">  
+            立即跳转  
+        </a>  
+        <div class="footer">  
+            <a href="https://github.com/lmq8267/vnt_dsm" target="_blank" rel="noopener noreferrer" style="color: #888; text-decoration: none;"> VNT/VNTS 群晖套件 </a>
+        </div>
+    </div>
+    
+    <script>
+        let seconds = 6;
+        const countdownEl = document.getElementById('countdown');
+          
+        const timer = setInterval(() => {
+            seconds--;
+            if (seconds > 0) {
+                countdownEl.textContent = seconds + '秒后自动跳转到登录页面...';
+            } else {
+                countdownEl.textContent = '正在跳转...';
+                clearInterval(timer);
+            }
+        }, 1000);
+    </script>
+</body>
+</html>
+EOF
+    exit 0
+fi
+
 VNTS_config="/var/packages/VNTS/var/config.yaml"
 VNTS_bin="/var/packages/VNTS/target/bin/vnts"
 VNTS_log="/var/packages/VNTS/var/VNTS.log"
