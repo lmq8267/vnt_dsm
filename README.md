@@ -14,7 +14,7 @@
 
 - 确保你的群晖里配置文件填写了 `out_ips:` 参数，对应群晖的局域网网段 例如`192.168.1.0/24` 并且关闭了 内置IP代理参数 `no_proxy: true`
 - 确保你的手机app端配置了 `in-ip` 群晖的局域网网段,群晖的虚拟ip，例如 `192.168.1.0/24,10.26.0.2`
-- 去掉[vnt/cmd/main](https://github.com/lmq8267/vnt_dsm/blob/aa0128987a90059f3dcae16bf1c6dc64e32b09e3/vnt-dsm/scripts/real-start-stop-status#L136)中的 # 使其生效，已经安装的话对应目录里`/var/packages/VNT/scripts/real-start-stop-status` 修改即可  
+- 去掉[vnt-dsm/scripts/real-start-stop-status](https://github.com/lmq8267/vnt_dsm/blob/aa0128987a90059f3dcae16bf1c6dc64e32b09e3/vnt-dsm/scripts/real-start-stop-status#L136)中的 # 使其生效，已经安装的话对应目录里`/var/packages/VNT/scripts/real-start-stop-status` 修改即可  
   <img width="922" height="178" alt="image" src="https://github.com/user-attachments/assets/da0a0dda-e476-43bd-8f0e-073484fe1c1f" />
 
   其中`10.26.0.0/24`对应你组网的虚拟网段，我没有添加是因为如果你自建服务器的话 改变了虚拟网段不是10.26.0.0/24就无效了
