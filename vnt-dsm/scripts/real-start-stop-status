@@ -54,7 +54,7 @@ start_daemon ()
 {
     VNT_TOKEN="$(sed -n 's/^[[:space:]]*token:[[:space:]]*\([^#[:space:]]\+\).*/\1/p' "$CONFIG_FILE" 2>/dev/null | tr -d '\r\n')"
     if [ -z "$VNT_TOKEN" ] ; then
-       echo -e "\n[$(date '+%Y-%m-%d %H:%M:%S')]: ERROR ⚠️ token缺失！配置文件中必须包含 token 才能启动！">> ${LOG_FILE}
+       echo -e "\n[$(date '+%Y-%m-%d %H:%M:%S')]: ERROR ⚠️ token缺失！配置文件中必须包含 token 才能启动！" >> ${LOG_FILE}
        exit 0
     fi
     i=0
