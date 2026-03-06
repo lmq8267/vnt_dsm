@@ -44,9 +44,9 @@ call_func ()
 {
     FUNC=$1
     if type "${FUNC}" 2>/dev/null | grep -q 'function' 2>/dev/null; then
-        log_msg "${FUNC} 开始" >> ${LOG_FILE}
+        log_msg "${FUNC} 开始"
         eval ${FUNC} >> ${LOG_FILE}
-        log_msg "${FUNC} 结束" >> ${LOG_FILE}
+        log_msg "${FUNC} 结束"
     fi
 }
 
@@ -75,7 +75,7 @@ start_daemon ()
                 else
                     SU=""
                 fi
-                log_msg "启动参数： ${SVC_CD}${service}" >> ${LOG_FILE}
+                log_msg "启动参数： ${SVC_CD}${service}"
                 if [ -z "${SVC_BACKGROUND}" ]; then
                     $SU /bin/sh -c "${SVC_CD}${service}" >> ${LOG_FILE} 2>&1
                 else
@@ -88,7 +88,7 @@ start_daemon ()
                     cd "${SVC_CWD}"
                     vcwd="cd ${SVC_CWD} ; "
                 fi
-                log_msg "启动参数： ${vcwd}${service}" >> ${LOG_FILE}
+                log_msg "启动参数： ${vcwd}${service}"
                 if [ -z "${SVC_BACKGROUND}" ]; then
                     ${service} >> ${LOG_FILE} 2>&1
                 else
@@ -106,10 +106,24 @@ start_daemon ()
     echo `date +%s` > /var/packages/VNT/var/vntcli_time
     tun_name=$(sed -n 's/^[[:space:]]*device_name:[[:space:]]*\([^#]*\).*/\1/p' "${VNT_config}" | tr -d "'\"" | xargs)
     [ -z "$tun_name"] && tun_name="vnt-tun"
+	log_msg "添加虚拟网卡 ${tun_name} 的NAT转发规则"
     iptables -I FORWARD -o $tun_name -j ACCEPT
     iptables -I FORWARD -i $tun_name -j ACCEPT
     iptables -I INPUT -i $tun_name -j ACCEPT
     iptables -t nat -I POSTROUTING -o $tun_name -j MASQUERADE
+	(
+        while :; do
+            ip_segment=$(ip route | grep -E "dev\s+$tun_name\s+proto\s+kernel" | awk '{print $1}')
+
+            if [ -n "$ip_segment" ]; then
+                log_msg "添加虚拟网段 ${ip_segment} 的NAT动态伪装规则"
+                iptables -t nat -I POSTROUTING -s "$ip_segment" -j MASQUERADE
+                break
+            fi
+
+            sleep 1
+        done
+    ) &
     # iptables -t nat -I POSTROUTING ! -o $tun_name -s 10.26.0.0/24 -j MASQUERADE
 }
 
@@ -118,7 +132,7 @@ stop_daemon ()
     if [ -n "${PID_FILE}" -a -r "${PID_FILE}" ]; then
         for pid in $(cat "${PID_FILE}")
         do
-            log_msg "正在停止 ${DNAME} 服务，进程ID : $(ps -p${pid} -o comm=) (${pid})" >> ${LOG_FILE}
+            log_msg "正在停止 ${DNAME} 服务，进程ID : $(ps -p${pid} -o comm=) (${pid})"
             kill -TERM ${pid} >> ${LOG_FILE} 2>&1
             wait_for_status 1 ${SVC_WAIT_TIMEOUT:=20} ${pid} || kill -KILL ${pid} >> ${LOG_FILE} 2>&1
         done
@@ -133,6 +147,8 @@ stop_daemon ()
     iptables -D FORWARD -i $tun_name -j ACCEPT 2>/dev/null
     iptables -D INPUT -i $tun_name -j ACCEPT 2>/dev/null
     iptables -t nat -D POSTROUTING -o $tun_name -j MASQUERADE 2>/dev/null
+	ip_segment=$(ip route | grep -E "dev\s+$tun_name\s+proto\s+kernel"| awk '{print $1}')
+    [ -z "$ip_segment" ] || iptables -t nat -D POSTROUTING -s $ip_segment -j MASQUERADE 2>/dev/null
     # iptables -t nat -D POSTROUTING ! -o $tun_name -s 10.26.0.0/24 -j MASQUERADE 2>/dev/null
     call_func "service_poststop"
 }
@@ -208,18 +224,18 @@ start_command_monitor()
                     case "$COMMAND" in
                         "start")
                             if ! daemon_status; then
-                                log_msg "用户手动触发启动服务" > ${LOG_FILE}
+                                log_msg "用户手动触发启动服务"
                                 start_daemon
                             fi
                             ;;
                         "stop")
                             if daemon_status; then
-                                log_msg "用户手动触发停止服务" > ${LOG_FILE}
+                                log_msg "用户手动触发停止服务"
                                 stop_daemon
                             fi
                             ;;
                         "restart")
-                            log_msg "用户修改了配置文件，重启服务" > ${LOG_FILE}
+                            log_msg "用户修改了配置文件，重启服务"
                             if daemon_status; then
                                 stop_daemon
                             fi
@@ -272,7 +288,7 @@ case $1 in
         else
             # 清空日志
     	     > "${LOG_FILE}"
-            log_msg "开始运行 ${DNAME} 套件 ..." >> ${LOG_FILE}
+            log_msg "开始运行 ${DNAME} 套件 ..."
             
             configure_tun
             # 启动命令监控  
@@ -288,7 +304,7 @@ case $1 in
     	if [ -f "$MONITOR_PID_FILE" ]; then  
         	MONITOR_PID=$(cat "$MONITOR_PID_FILE")  
         	if [ -n "$MONITOR_PID" ] && kill -0 $MONITOR_PID 2>/dev/null; then  
-            		# log_msg "停止命令监控进程 ${MONITOR_PID}" >> ${LOG_FILE}  
+            		# log_msg "停止命令监控进程 ${MONITOR_PID}" 
             		kill -TERM $MONITOR_PID >> ${LOG_FILE} 2>&1  
         	fi  
         	rm -f "$MONITOR_PID_FILE"  
@@ -303,7 +319,7 @@ case $1 in
     		rm -f "$LOGCLEANER_PID_FILE"
 	fi
         if daemon_status; then
-            log_msg "正在停止 ${DNAME} 套件 ..." >> ${LOG_FILE}
+            log_msg "正在停止 ${DNAME} 套件 ..."
             stop_daemon
             exit $?
         else
