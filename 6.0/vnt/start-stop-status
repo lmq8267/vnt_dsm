@@ -105,7 +105,7 @@ start_daemon ()
     # 记录运行时间
     echo `date +%s` > /var/packages/VNT/var/vntcli_time
     tun_name=$(sed -n 's/^[[:space:]]*device_name:[[:space:]]*\([^#]*\).*/\1/p' "${VNT_config}" | tr -d "'\"" | xargs)
-    [ -z "$tun_name"] && tun_name="vnt-tun"
+    [ -z "$tun_name" ] && tun_name="vnt-tun"
 	log_msg "添加虚拟网卡 ${tun_name} 的NAT转发规则"
     iptables -I FORWARD -o $tun_name -j ACCEPT
     iptables -I FORWARD -i $tun_name -j ACCEPT
