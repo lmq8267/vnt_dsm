@@ -55,7 +55,9 @@ start_daemon ()
     VNT_TOKEN="$(sed -n 's/^[[:space:]]*token:[[:space:]]*\([^#[:space:]]\+\).*/\1/p' "$CONFIG_FILE" 2>/dev/null | tr -d '\r\n')"
     if [ -z "$VNT_TOKEN" ] ; then
         echo -e "\n[$(date '+%Y-%m-%d %H:%M:%S')]: ERROR ⚠️ token缺失！配置文件中必须包含 token 才能启动！" >> ${LOG_FILE}
-        exit 0
+        TOKEN_t=$(cat /dev/urandom | head -n 16 | md5sum | head -c 10)
+        echo "token: $TOKEN_t" >> "$CONFIG_FILE"
+        echo -e "\n[$(date '+%Y-%m-%d %H:%M:%S')]: ERROR ⚠️ 由于token缺失！临时生成随机 token: $TOKEN_t 来启动,请及时修改！！！" >> ${LOG_FILE}
     fi
     i=0
     call_func "service_prestart"
@@ -145,7 +147,7 @@ stop_daemon ()
     fi
     killall vnt-cli 2>/dev/null
     tun_name=$(sed -n 's/^[[:space:]]*device_name:[[:space:]]*\([^#]*\).*/\1/p' "${VNT_config}" | tr -d "'\"" | xargs)
-    [ -z "$tun_name"] && tun_name="vnt-tun"
+    [ -z "$tun_name" ] && tun_name="vnt-tun"
     iptables -D FORWARD -o $tun_name -j ACCEPT 2>/dev/null
     iptables -D FORWARD -i $tun_name -j ACCEPT 2>/dev/null
     iptables -D INPUT -i $tun_name -j ACCEPT 2>/dev/null
@@ -327,7 +329,7 @@ case $1 in
             exit 0
         else
             echo "${DNAME} 未运行"
-            exit 0
+            exit 3
         fi
         ;;
     log)

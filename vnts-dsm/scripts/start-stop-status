@@ -267,8 +267,9 @@ case $1 in
             echo "${DNAME} 运行中"
             exit 0
         else
+            # 如果开机无法自动运行可能需要修改这个退出码 3
             echo "${DNAME} 未运行"
-            exit 0
+            exit 3
         fi
         ;;
     log)
