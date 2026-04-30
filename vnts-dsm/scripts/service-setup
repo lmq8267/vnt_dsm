@@ -51,7 +51,7 @@ parse_vnts_config_with_update() {
         fi
           
         # 解析子网掩码  
-        local netmask_from_config=$(grep "^netmask:" "$config_file" | sed 's/netmask: //' | xargs)
+        local netmask_from_config=$(grep -m1 "^netmask:" "$config_file" | awk -F': ' '{print $2}')
         if [[ -n "$netmask_from_config" ]]; then
             netmask="$netmask_from_config"
         else
