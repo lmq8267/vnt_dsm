@@ -1,6 +1,6 @@
 #!/bin/bash    
 
-if [[ -z "$HTTP_COOKIE" ]] || ! echo "$HTTP_COOKIE" | grep -q 'stay_login=1'; then
+if [[ -z "$HTTP_COOKIE" ]] || ! echo "$HTTP_COOKIE" | grep -qE '(^|;\s*)id='; then
     echo "Status: 401 Unauthorized"
     echo "Content-Type: text/html; charset=UTF-8"
     echo ""
