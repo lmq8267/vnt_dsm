@@ -145,36 +145,28 @@ update_config_file() {
     local tokens="$9"
     local finger_check="${10}"
     local log_enabled="${11}"
-      
-    # 备份原配置文件
-    cp "$config_file" "${config_file}.bak"
-      
-    # 重新生成配置文件
-    cat > "$config_file" << EOF
-port: $service_port
-gateway: $gateway_ip
-token_whitelist: [$tokens]
-finger_check: $finger_check
-EOF
-      
-    # 添加WEB配置
-    if [[ "$web_enabled" == "true" ]]; then
-        cat >> "$config_file" << EOF
-web:
-  enabled: true
-  port: $web_port
-  username: "$web_username"
-  password: "$web_password"
-EOF
-    fi
-      
-    # 添加子网掩码配置
-    echo "netmask: $netmask" >> "$config_file"
-      
-    # 添加日志配置
-    if [[ "$log_enabled" == "true" ]]; then
-        echo "log_enabled: true" >> "$config_file"
-    fi
+
+    {
+        echo "port: $service_port"
+        echo "gateway: $gateway_ip"
+        echo "token_whitelist: [$tokens]"
+        echo "finger_check: $finger_check"
+
+        # web 配置
+        if [[ "$web_enabled" == "true" ]]; then
+            echo "web:"
+            echo "  enabled: true"
+            echo "  port: $web_port"
+            echo "  username: \"$web_username\""
+            echo "  password: \"$web_password\""
+        fi
+
+        echo "netmask: $netmask"
+        if [[ "$log_enabled" == "true" ]]; then
+    	    echo "log_enabled: true"
+	fi
+
+    } > "$config_file"
 }
 
 # 创建默认配置文件函数
